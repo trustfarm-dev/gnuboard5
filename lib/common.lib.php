@@ -153,7 +153,7 @@ function alert($msg='', $url='', $error=true, $post=false)
     global $g5, $config, $member;
     global $is_admin;
 
-    if (!$msg) $msg = '올바른 방법으로 이용해 주십시오.';
+    $msg = $msg ? strip_tags($msg, '<br>') : '올바른 방법으로 이용해 주십시오.';
 
     $header = '';
     if (isset($g5['title'])) {
@@ -168,6 +168,8 @@ function alert($msg='', $url='', $error=true, $post=false)
 function alert_close($msg, $error=true)
 {
     global $g5;
+    
+    $msg = strip_tags($msg, '<br>');
 
     $header = '';
     if (isset($g5['title'])) {
@@ -216,7 +218,7 @@ function url_auto_link($str)
     // http://sir.kr/pg_lecture/463
     $str = str_replace(array("&lt;", "&gt;", "&amp;", "&quot;", "&nbsp;", "&#039;"), array("\t_lt_\t", "\t_gt_\t", "&", "\"", "\t_nbsp_\t", "'"), $str);
     //$str = preg_replace("`(?:(?:(?:href|src)\s*=\s*(?:\"|'|)){0})((http|https|ftp|telnet|news|mms)://[^\"'\s()]+)`", "<A HREF=\"\\1\" TARGET='{$config['cf_link_target']}'>\\1</A>", $str);
-    $str = preg_replace("/([^(href=\"?'?)|(src=\"?'?)]|\(|^)((http|https|ftp|telnet|news|mms):\/\/[a-zA-Z0-9\.-]+\.[가-힣\xA1-\xFEa-zA-Z0-9\.:&#=_\?\/~\+%@;\-\|\,\(\)]+)/i", "\\1<A HREF=\"\\2\" TARGET=\"{$config['cf_link_target']}\">\\2</A>", $str);
+    $str = preg_replace("/([^(href=\"?'?)|(src=\"?'?)]|\(|^)((http|https|ftp|telnet|news|mms):\/\/[a-zA-Z0-9\.-]+\.[가-힣\xA1-\xFEa-zA-Z0-9\.:&#!=_\?\/~\+%@;\-\|\,\(\)]+)/i", "\\1<A HREF=\"\\2\" TARGET=\"{$config['cf_link_target']}\">\\2</A>", $str);
     $str = preg_replace("/(^|[\"'\s(])(www\.[^\"'\s()]+)/i", "\\1<A HREF=\"http://\\2\" TARGET=\"{$config['cf_link_target']}\">\\2</A>", $str);
     $str = preg_replace("/[0-9a-z_-]+@[a-z0-9._-]{4,}/i", "<a href=\"mailto:\\0\">\\0</a>", $str);
     $str = str_replace(array("\t_nbsp_\t", "\t_lt_\t", "\t_gt_\t", "'"), array("&nbsp;", "&lt;", "&gt;", "&#039;"), $str);
@@ -628,7 +630,7 @@ function get_sql_search($search_ca_name, $search_field, $search_text, $search_op
 
             // SQL Injection 방지
             // 필드값에 a-z A-Z 0-9 _ , | 이외의 값이 있다면 검색필드를 wr_subject 로 설정한다.
-            $field[$k] = preg_match("/^[\w\,\|]+$/", $field[$k]) ? $field[$k] : "wr_subject";
+            $field[$k] = preg_match("/^[\w\,\|]+$/", $field[$k]) ? strtolower($field[$k]) : "wr_subject";
 
             $str .= $op2;
             switch ($field[$k]) {
@@ -712,7 +714,7 @@ function get_member($mb_id, $fields='*')
 // 제목별로 컬럼 정렬하는 QUERY STRING
 function subject_sort_link($col, $query_string='', $flag='asc')
 {
-    global $sst, $sod, $sfl, $stx, $page;
+    global $sst, $sod, $sfl, $stx, $page, $sca;
 
     $q1 = "sst=$col";
     if ($flag == 'asc')
@@ -744,6 +746,7 @@ function subject_sort_link($col, $query_string='', $flag='asc')
     $arr_query[] = $q2;
     $arr_query[] = 'sfl='.$sfl;
     $arr_query[] = 'stx='.$stx;
+    $arr_query[] = 'sca='.$sca;
     $arr_query[] = 'page='.$page;
     $qstr = implode("&amp;", $arr_query);
 
@@ -2018,8 +2021,12 @@ function sql_real_escape_string($str, $link=null)
 
     if(!$link)
         $link = $g5['connect_db'];
+    
+    if(function_exists('mysqli_connect') && G5_MYSQLI_USE) {
+        return mysqli_real_escape_string($link, $str);
+    }
 
-    return mysqli_real_escape_string($link, $str);
+    return mysql_real_escape_string($str, $link);
 }
 
 function escape_trim($field)
@@ -2665,7 +2672,10 @@ if (!function_exists("get_sock")) {
         $fp = fsockopen ($host, 80, $errno, $errstr, 30);
         if (!$fp)
         {
-            die("$errstr ($errno)\n");
+            //die("$errstr ($errno)\n");
+
+            echo "$errstr ($errno)\n";
+            return null;
         }
         else
         {
@@ -2987,15 +2997,32 @@ function check_url_host($url, $msg='', $return_url=G5_URL)
 
     $p = @parse_url($url);
     $host = preg_replace('/:[0-9]+$/', '', $_SERVER['HTTP_HOST']);
+    $is_host_check = false;
 
     if(stripos($url, 'http:') !== false) {
         if(!isset($p['scheme']) || !$p['scheme'] || !isset($p['host']) || !$p['host'])
             alert('url 정보가 올바르지 않습니다.', $return_url);
     }
 
-    if ((isset($p['scheme']) && $p['scheme']) || (isset($p['host']) && $p['host'])) {
+    //php 5.6.29 이하 버전에서는 parse_url 버그가 존재함
+    if ( (isset($p['host']) && $p['host']) && version_compare(PHP_VERSION, '5.6.29') < 0) {
+        $bool_ch = false;
+        foreach( array('user','host') as $key) {
+            if ( isset( $p[ $key ] ) && strpbrk( $p[ $key ], ':/?#@' ) ) {
+                $bool_ch = true;
+            }
+        }
+        if( $bool_ch ){
+            $regex = '/https?\:\/\/'.$host.'/i';
+            if( ! preg_match($regex, $url) ){
+                $is_host_check = true;
+            }
+        }
+    }
+
+    if ((isset($p['scheme']) && $p['scheme']) || (isset($p['host']) && $p['host']) || $is_host_check) {
         //if ($p['host'].(isset($p['port']) ? ':'.$p['port'] : '') != $_SERVER['HTTP_HOST']) {
-        if ($p['host'] != $host) {
+        if ( ($p['host'] != $host) || $is_host_check ) {
             echo '<script>'.PHP_EOL;
             echo 'alert("url에 타 도메인을 지정할 수 없습니다.");'.PHP_EOL;
             echo 'document.location.href = "'.$return_url.'";'.PHP_EOL;
@@ -3196,7 +3223,7 @@ class str_encrypt
     function __construct($salt='')
     {
         if(!$salt)
-            $this->salt = md5(G5_MYSQL_PASSWORD);
+            $this->salt = md5(preg_replace('/[^0-9A-Za-z]/', substr(G5_MYSQL_USER, -1), G5_MYSQL_PASSWORD));
         else
             $this->salt = $salt;
 
@@ -3255,6 +3282,83 @@ function check_write_token($bo_table)
 
     if(!$token || !$_REQUEST['token'] || $token != $_REQUEST['token'])
         alert('올바른 방법으로 이용해 주십시오.', G5_URL);
+
+    return true;
+}
+
+function get_call_func_cache($func, $args=array()){
+    
+    static $cache = array();
+
+    $key = md5(serialize($args));
+
+    if( isset($cache[$func]) && isset($cache[$func][$key]) ){
+        return $cache[$func][$key];
+    }
+
+    $result = null;
+
+    try{
+        $cache[$func][$key] = $result = call_user_func_array($func, $args);
+    } catch (Exception $e) {
+        return null;
+    }
+    
+    return $result;
+}
+
+// include 하는 경로에 data file 경로가 포함되어 있는지 체크합니다.
+function is_include_path_check($path='', $is_input='')
+{
+    if( $path ){
+        if ($is_input){
+            try {
+                // whether $path is unix or not
+                $unipath = strlen($path)==0 || $path{0}!='/';
+                $unc = substr($path,0,2)=='\\\\'?true:false;
+                // attempts to detect if path is relative in which case, add cwd
+                if(strpos($path,':') === false && $unipath && !$unc){
+                    $path=getcwd().DIRECTORY_SEPARATOR.$path;
+                    if($path{0}=='/'){
+                        $unipath = false;
+                    }
+                }
+
+                // resolve path parts (single dot, double dot and double delimiters)
+                $path = str_replace(array('/', '\\'), DIRECTORY_SEPARATOR, $path);
+                $parts = array_filter(explode(DIRECTORY_SEPARATOR, $path), 'strlen');
+                $absolutes = array();
+                foreach ($parts as $part) {
+                    if ('.'  == $part){
+                        continue;
+                    }
+                    if ('..' == $part) {
+                        array_pop($absolutes);
+                    } else {
+                        $absolutes[] = $part;
+                    }
+                }
+                $path = implode(DIRECTORY_SEPARATOR, $absolutes);
+                // resolve any symlinks
+                // put initial separator that could have been lost
+                $path = !$unipath ? '/'.$path : $path;
+                $path = $unc ? '\\\\'.$path : $path;
+            } catch (Exception $e) {
+                //echo 'Caught exception: ',  $e->getMessage(), "\n";
+                return false;
+            }
+
+            if( preg_match('/\/data\/(file|editor)\/[A-Za-z0-9_]{1,20}\//', $path) ){
+                return false;
+            }
+        }
+
+        $extension = pathinfo($path, PATHINFO_EXTENSION);
+        
+        if($extension && preg_match('/(jpg|jpeg|png|gif|bmp|conf)$/', $extension)) {
+            return false;
+        }
+    }
 
     return true;
 }

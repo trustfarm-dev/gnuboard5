@@ -69,6 +69,8 @@ function number_format(data)
     var cutlen = 3;
     var comma = ',';
     var i;
+    
+    data = data + '';
 
     var sign = data.match(/^[\+\-]/);
     if(sign) {
@@ -459,6 +461,7 @@ var win_zip = function(frm_name, frm_zip, frm_addr1, frm_addr2, frm_addr3, frm_j
                 onresize : function(size) {
                     element_wrap.style.height = size.height + "px";
                 },
+                maxSuggestItems : g5_is_mobile ? 6 : 10,
                 width : '100%',
                 height : '100%'
             }).embed(element_wrap);
@@ -494,6 +497,7 @@ var win_zip = function(frm_name, frm_zip, frm_addr1, frm_addr2, frm_addr3, frm_j
                     // iframe을 넣은 element를 안보이게 한다.
                     element_layer.style.display = 'none';
                 },
+                maxSuggestItems : g5_is_mobile ? 6 : 10,
                 width : '100%',
                 height : '100%'
             }).embed(element_layer);
@@ -719,8 +723,13 @@ function get_write_token(bo_table)
 }
 
 $(function() {
-    $(document).on("click", "form[name=fwrite] input:submit", function() {
+    $(document).on("click", "form[name=fwrite] input:submit, form[name=fwrite] button:submit, form[name=fwrite] input:image", function() {
         var f = this.form;
+
+        if (typeof(f.bo_table) == "undefined") {
+            return;
+        }
+
         var bo_table = f.bo_table.value;
         var token = get_write_token(bo_table);
 

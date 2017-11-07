@@ -6,20 +6,32 @@ header('Last-Modified: ' . $gmnow);
 header('Cache-Control: no-store, no-cache, must-revalidate'); // HTTP/1.1
 header('Cache-Control: pre-check=0, post-check=0, max-age=0'); // HTTP/1.1
 header('Pragma: no-cache'); // HTTP/1.0
+@header('Content-Type: text/html; charset=utf-8');
+@header('X-Robots-Tag: noindex');
 
 include_once ('../config.php');
 include_once ('../lib/common.lib.php');
+
+if( ! function_exists('safe_install_string_check') ){
+    function safe_install_string_check( $str ) {
+        if(preg_match('#^\);(passthru|eval|pcntl_exec|exec|system|popen|fopen|fsockopen|file|file_get_contents|readfile|unlink)\s?\(\$_(get|post|request)\s?\[.*?\]\s?\)#i', $str)) {
+            die("입력한 값에 안전하지 않는 문자가 포함되어 있습니다. 설치를 중단합니다.");
+        }
+
+        return $str;
+    }
+}
 
 $title = G5_VERSION." 설치 완료 3/3";
 include_once ('./install.inc.php');
 
 //print_r($_POST); exit;
 
-$mysql_host  = $_POST['mysql_host'];
-$mysql_user  = $_POST['mysql_user'];
-$mysql_pass  = $_POST['mysql_pass'];
-$mysql_db    = $_POST['mysql_db'];
-$table_prefix= $_POST['table_prefix'];
+$mysql_host  = safe_install_string_check($_POST['mysql_host']);
+$mysql_user  = safe_install_string_check($_POST['mysql_user']);
+$mysql_pass  = safe_install_string_check($_POST['mysql_pass']);
+$mysql_db    = safe_install_string_check($_POST['mysql_db']);
+$table_prefix= safe_install_string_check($_POST['table_prefix']);
 $admin_id    = $_POST['admin_id'];
 $admin_pass  = $_POST['admin_pass'];
 $admin_name  = $_POST['admin_name'];
@@ -118,7 +130,7 @@ $sql = " insert into `{$table_prefix}config`
                 cf_mobile_pages = '5',
                 cf_link_target = '_blank',
                 cf_delay_sec = '30',
-                cf_filter = '18아,18놈,18새끼,18년,18뇬,18노,18것,18넘,개년,개놈,개뇬,개새,개색끼,개세끼,개세이,개쉐이,개쉑,개쉽,개시키,개자식,개좆,게색기,게색끼,광뇬,뇬,눈깔,뉘미럴,니귀미,니기미,니미,도촬,되질래,뒈져라,뒈진다,디져라,디진다,디질래,병쉰,병신,뻐큐,뻑큐,뽁큐,삐리넷,새꺄,쉬발,쉬밸,쉬팔,쉽알,스패킹,스팽,시벌,시부랄,시부럴,시부리,시불,시브랄,시팍,시팔,시펄,실밸,십8,십쌔,십창,싶알,쌉년,썅놈,쌔끼,쌩쑈,썅,써벌,썩을년,쎄꺄,쎄엑,쓰바,쓰발,쓰벌,쓰팔,씨8,씨댕,씨바,씨발,씨뱅,씨봉알,씨부랄,씨부럴,씨부렁,씨부리,씨불,씨브랄,씨빠,씨빨,씨뽀랄,씨팍,씨팔,씨펄,씹,아가리,아갈이,엄창,접년,잡놈,재랄,저주글,조까,조빠,조쟁이,조지냐,조진다,조질래,존나,존니,좀물,좁년,좃,좆,좇,쥐랄,쥐롤,쥬디,지랄,지럴,지롤,지미랄,쫍빱,凸,퍽큐,뻑큐,빠큐,ㅅㅂㄹㅁ',
+                cf_filter = '18아,18놈,18새끼,18뇬,18노,18것,18넘,개년,개놈,개뇬,개새,개색끼,개세끼,개세이,개쉐이,개쉑,개쉽,개시키,개자식,개좆,게색기,게색끼,광뇬,뇬,눈깔,뉘미럴,니귀미,니기미,니미,도촬,되질래,뒈져라,뒈진다,디져라,디진다,디질래,병쉰,병신,뻐큐,뻑큐,뽁큐,삐리넷,새꺄,쉬발,쉬밸,쉬팔,쉽알,스패킹,스팽,시벌,시부랄,시부럴,시부리,시불,시브랄,시팍,시팔,시펄,실밸,십8,십쌔,십창,싶알,쌉년,썅놈,쌔끼,쌩쑈,썅,써벌,썩을년,쎄꺄,쎄엑,쓰바,쓰발,쓰벌,쓰팔,씨8,씨댕,씨바,씨발,씨뱅,씨봉알,씨부랄,씨부럴,씨부렁,씨부리,씨불,씨브랄,씨빠,씨빨,씨뽀랄,씨팍,씨팔,씨펄,씹,아가리,아갈이,엄창,접년,잡놈,재랄,저주글,조까,조빠,조쟁이,조지냐,조진다,조질래,존나,존니,좀물,좁년,좃,좆,좇,쥐랄,쥐롤,쥬디,지랄,지럴,지롤,지미랄,쫍빱,凸,퍽큐,뻑큐,빠큐,ㅅㅂㄹㅁ',
                 cf_possible_ip = '',
                 cf_intercept_ip = '',
                 cf_analytics = '',
